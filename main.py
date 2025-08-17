@@ -2,8 +2,7 @@ import os
 import yaml
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
-from sql.extract import fetch_chemicals, fetch_organisms, fetch_biosystems, fetch_proteins
-from src.transform import build_nodes_and_edges
+from src.build_graph import build_graph_from_db
 
 
 def connect_to_database(config):
@@ -37,22 +36,5 @@ engine = connect_to_database(config)
 Session = sessionmaker(bind=engine)
 session = Session()
 
-# 1. Extract
-chemicals = fetch_chemicals(session)
-organisms = fetch_organisms(session)
-biosystems = fetch_biosystems(session)
-proteins = fetch_proteins(session)
-
-# 2. Transform to nodes & edges
-nodes, edges = build_nodes_and_edges(
-    chemicals, 
-    organisms, 
-    biosystems,
-    proteins
-)
-
-for node in nodes:
-    print(node)
-
-for edge in edges:
-    print(edge)
+# Build graph
+build_graph_from_db(session)

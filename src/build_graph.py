@@ -1,18 +1,18 @@
 import networkx as nx
+from src.transform import add_all_nodes_and_edges
 
 
-# Create graph
-G = nx.DiGraph()
+def build_graph_from_db(session):
+    # Initialize directed graph
+    G = nx.DiGraph()
 
-# Populate graph
-nodes = []
-G.add_nodes_from(nodes)
+    # Add nodes and edges sequentially
+    G = add_all_nodes_and_edges(G, session)
 
-edges = []
-G.add_edges_from(edges)
-
-# Check graph
-G.number_of_nodes()
-list(G.nodes)
-G.number_of_edges()
-list(G.edges)
+    # Check graph
+    print(G.number_of_nodes())
+    print(G.number_of_edges())
+    # for node, attrs in G.nodes(data=True):
+    #     print(node, attrs)
+    
+    return G
