@@ -1,6 +1,8 @@
 from sql.model import (
-    Chemical, ChemicalAssociation, Biosystem, Organism, Protein, ProteinAnnotation, Ortholog
+    Chemical, ChemicalAssociation, Biosystem, Organism, Protein, ProteinMapping, ProteinAnnotation, Ortholog,
+    GeneDifferential, Contrast, Dose, Timepoint
 )
+from sqlalchemy import select, func
 import pandas as pd
 
 
@@ -153,10 +155,102 @@ def add_protein_annotations(graph, session):
     return graph
 
 
+def add_transcriptomics(graph, session):
+
+    # Add nodes for Timepoints and Doses
+    stmt = (
+        select(
+            Timepoint.timepoint_hr
+        )
+        .distinct()
+    )
+    for row in session.execute(stmt).all():
+        node_id = f"timepoint_{row.timepoint_hr}hr"
+        graph.add_node(node_id, **{"exposure_time": row.timepoint_hr})
+
+    stmt = (select(Dose.dose_code, Dose.dose_name))
+    dd = {"L": "Low", "M": "Medium", "H": "High", "Z": "Control"}
+    for row in session.execute(stmt).all():
+        node_id = f"dose_{row.dose_code}"
+        node_attrs = {
+            "code": row.dose_code,
+            "name": dd[row.dose_code],
+            "description": row.dose_name
+            }
+        graph.add_node(node_id, **node_attrs)
+
+    # Add exposure nodes and 
+    stmt = (
+        select(
+            GeneDifferential.gene,
+            GeneDifferential.log2_fc,
+            GeneDifferential.padj,
+            Contrast.contrast_id,
+            Contrast.ptox_contrast_id,
+            Contrast.ptx_code,
+            Biosystem.biosystem_id,
+            Biosystem.ptox_biosystem_code,
+            Biosystem.ptox_biosystem_name,
+            Dose.dose_code,
+            Timepoint.timepoint_hr,
+            Protein.protein_id
+        )
+        .join(Contrast, GeneDifferential.contrast_id == Contrast.contrast_id)
+        .join(Biosystem, Contrast.biosystem_id == Biosystem.biosystem_id)
+        .join(Dose, Contrast.treatment_dose_id == Dose.dose_id)
+        .join(Timepoint, Timepoint.timepoint_id == Contrast.timepoint_id)
+        .join(ProteinMapping, GeneDifferential.gene == ProteinMapping.external_id)
+        .join(Protein, ProteinMapping.protein_id == Protein.protein_id)
+        .where(
+            (GeneDifferential.padj <= 0.05) &
+            (func.abs(GeneDifferential.log2_fc) > 1) &
+            (Biosystem.organism_id == Protein.organism_id)
+        )
+        .order_by(GeneDifferential.padj.asc())
+        # .limit(1000)
+    )
+
+    rows = session.execute(stmt).all()
+    exposure_nodes = set()
+    for row in rows:
+        ptx_code = "PTX"+str(row.ptx_code).zfill(3)
+        org = row.ptox_biosystem_name[0]+row.ptox_biosystem_name.split("_")[1][:3]
+        exposure_id = f"exposure_{row.ptox_biosystem_code}_{org}_{ptx_code}_{row.dose_code}-dose_{row.timepoint_hr}hr"
+        if exposure_id not in exposure_nodes:
+            exposure_attrs = {
+                "type": "Exposure"
+            }
+            graph.add_node(exposure_id, **exposure_attrs)
+            exposure_nodes.add(exposure_id)
+            biosys_id = f"biosystem_{row.biosystem_id}"
+            chem_id = f"chemical_{row.ptx_code}"
+            time_id = f"timepoint_{row.timepoint_hr}hr"
+            dose_id = f"dose_{row.dose_code}"
+            graph.add_edge(exposure_id, biosys_id, **{"relation": "sampled_from"})
+            graph.add_edge(exposure_id, chem_id, **{"relation": "exposed_to"})
+            graph.add_edge(exposure_id, time_id, **{"relation": "exposed_for"})
+            graph.add_edge(exposure_id, dose_id, **{"relation": "exposure_dose"})
+        
+        protein_id = f"protein_{row.protein_id}"
+        if row.log2_fc > 0:
+            change = "increases"
+        else:
+            change = "decreases"
+        edge_attrs = {
+            "relation": f"{change}_expression",
+            "logFC": row.log2_fc,
+            "pvalue": row.padj
+        }
+        graph.add_edge(exposure_id, protein_id, **edge_attrs)
+
+    return graph
+
+
 def add_all_nodes_and_edges(graph, session):
     graph = add_chemicals(graph, session)
     graph = add_organisms(graph, session)
     graph = add_biosystems(graph, session)
     graph = add_proteins(graph, session)
     graph = add_protein_annotations(graph, session)
+    graph = add_transcriptomics(graph, session)
     return graph    
