@@ -1,5 +1,6 @@
 import os
 import yaml
+import pickle
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
 from src.build_graph import build_graph_from_db
@@ -30,11 +31,20 @@ with open(f"{HERE_PATH}/config.yml", "r") as stream:
     except yaml.YAMLError as exc:
         print(exc)
 
+graph_name = "ptox_kg"
+graphml_file = f"{graph_name}.graphml"
+pkl_file = f"{graph_name}.pkl"
 
 # Setup DB session
 engine = connect_to_database(config)
 Session = sessionmaker(bind=engine)
 session = Session()
 
-# Build graph
-build_graph_from_db(session)
+# Build graph if it does not exist
+if os.path.isfile(pkl_file):
+    G = pickle.load(open(pkl_file, "rb"))
+else:
+    G = build_graph_from_db(session, graph_name)
+
+print(G.number_of_nodes())
+print(G.number_of_edges())
