@@ -29,7 +29,7 @@ def add_chemicals(graph, session):
             "type": "Chemical",
             "ptx_code": chem.full_ptx_code,
             "name": chem.name,
-            "selected": chem.selected
+            # "selected": chem.selected
         }
         graph.add_node(chem_id, **chem_attributes)
 
@@ -115,7 +115,7 @@ def add_proteins(graph, session):
     for ort in session.query(Ortholog).yield_per(1000):
         prot_id_a = f"protein_{ort.protein_id_a}"
         prot_id_b = f"protein_{ort.protein_id_b}"
-        graph.add_edge(prot_id_a, prot_id_b, **{"relation": "ortholog_to"})
+        graph.add_edge(prot_id_a, prot_id_b, **{"relation": "ortholog_to", "score": ort.score})
     
     return graph
 
