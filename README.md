@@ -31,12 +31,12 @@ Ptox Knowledge Graph is a project aimed at building and managing a knowledge gra
 | Node Type      | Description                       | Attributes      |
 |----------------|-----------------------------------|------------------------|
 | Chemical       | Compound selected for toxicity assessment      | PTX code, name   |
-| Organism       | Species       | scientific name, common name, UniProt name |   
 | Biosystem       | Experimental system         |  name, code      |
+| Organism       | Species of experimental biosystem      | scientific name, common name, UniProt name |   
+| Protein   | Single portein subject to expression changes         | UniProt Acc, UniProt ID, gene name, description          |
+| Pathway  |  Biological pathway  | name, id, source |
 | Disease      | Disease                | name, identifier (DOID)        |
-| Protein   |          | UniProt Acc, UniProt ID, gene name, description          |
-| Pathway  |  Pathway  | name, id, source |
-| Exposure | Exposure experiment | |
+| Exposure | Exposure experiment | | -
 | Timepoint | Duration of chemical exposure | exposure time (hrs) |
 | Dose  | Dose of chemical in exposure: high, medium, low or control |  code, name, description |
 
@@ -52,3 +52,6 @@ Ptox Knowledge Graph is a project aimed at building and managing a knowledge gra
 | exposed_for | Exposure | Timepoint | | |
 | exposure_dose | Exposure | Dose | | |
 | increases/decreases_expression | Exposure | Protein | Change in protein expression | log2_FC, adj_pval |
+
+#### Small subset showcasing knowledge graph organization
+![Sample graph](images/sample_graph.png)

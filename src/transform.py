@@ -29,10 +29,11 @@ def add_chemicals(graph, session):
             "type": "Chemical",
             "ptx_code": chem.full_ptx_code,
             "name": chem.name,
+            "label": f"{chem.full_ptx_code} | {chem.name}"
             # "selected": chem.selected
         }
         graph.add_node(chem_id, **chem_attributes)
-
+       
     # Add disease nodes, chemical-disease edges
     disease_dict = {}
     disease_id_counter = 1
@@ -49,7 +50,8 @@ def add_chemicals(graph, session):
                 disease_attrs = {
                     "type": "Disease",
                     "name": assoc.term,
-                    "identifier": ext_id
+                    "identifier": ext_id,
+                    "label": f"{ext_id} | {assoc.term}"
                 }
                 graph.add_node(disease_id, **disease_attrs)
 
@@ -73,7 +75,8 @@ def add_organisms(graph, session):
             "type": "Organism", 
             "scientific_name": org.scientific_name,
             "common_name": org.common_name,
-            "uniprot_name": org.uniprot_acronym
+            "uniprot_name": org.uniprot_acronym,
+            "label": org.scientific_name
         }
         graph.add_node(org_id, **org_attributes)
     return graph
@@ -84,7 +87,7 @@ def add_biosystems(graph, session):
         biosys_id = f"biosystem_{biosys.biosystem_id}"
         biosys_attributes = {
             "type": "Biosystem", 
-            "name": biosys.ptox_biosystem_name,
+            "label": biosys.ptox_biosystem_name,
             "code": biosys.ptox_biosystem_code
         }
         graph.add_node(biosys_id, **biosys_attributes)
@@ -104,13 +107,14 @@ def add_proteins(graph, session):
             "uniprot_ac": prot.uniprot_ac,
             "uniprot_id": prot.uniprot_id,
             "gene_name": prot.gene_name,
-            "name": prot.protein_name
+            "name": prot.protein_name,
+            "label": f"{prot.uniprot_id} | {prot.gene_name}"
         }
         graph.add_node(prot_id, **prot_attributes)
         if prot.organism:
             org_id = f"organism_{prot.organism.organism_id}"
             graph.add_edge(prot_id, org_id, **{"relation": "from"})
-
+    
     # Add ortholog edges
     for ort in session.query(Ortholog).yield_per(1000):
         prot_id_a = f"protein_{ort.protein_id_a}"
@@ -142,7 +146,8 @@ def add_protein_annotations(graph, session):
                 "type": "Pathway",
                 "name": name,
                 "id": external_id,
-                "source": source
+                "source": source,
+                "label": f"{external_id} | {name}" if external_id else name
             }
             graph.add_node(pathway_id, **pathway_attrs)
 
@@ -156,7 +161,6 @@ def add_protein_annotations(graph, session):
 
 
 def add_transcriptomics(graph, session):
-
     # Add nodes for Timepoints and Doses
     stmt = (
         select(
@@ -166,15 +170,21 @@ def add_transcriptomics(graph, session):
     )
     for row in session.execute(stmt).all():
         node_id = f"timepoint_{row.timepoint_hr}hr"
-        graph.add_node(node_id, **{"exposure_time": row.timepoint_hr})
+        node_attrs = {
+            "type": "Timepoint",
+            "exposure_time": f"{row.timepoint_hr} hrs",
+            "label": f"Exposure time: {row.timepoint_hr} hrs"
+        }
+        graph.add_node(node_id, **node_attrs)
 
     stmt = (select(Dose.dose_code, Dose.dose_name))
     dd = {"L": "Low", "M": "Medium", "H": "High", "Z": "Control"}
     for row in session.execute(stmt).all():
         node_id = f"dose_{row.dose_code}"
         node_attrs = {
+            "type": "Dose",
             "code": row.dose_code,
-            "name": dd[row.dose_code],
+            "label": f"Exposure dose: {dd[row.dose_code]}",
             "description": row.dose_name
             }
         graph.add_node(node_id, **node_attrs)
@@ -214,7 +224,7 @@ def add_transcriptomics(graph, session):
     exposure_nodes = set()
     for row in rows:
         ptx_code = "PTX"+str(row.ptx_code).zfill(3)
-        org = row.ptox_biosystem_name[0]+row.ptox_biosystem_name.split("_")[1][:3]
+        org = row.ptox_biosystem_name[0]+row.ptox_biosystem_name.split("_")[1][:2]
         exposure_id = f"exposure_{row.ptox_biosystem_code}_{org}_{ptx_code}_{row.dose_code}-dose_{row.timepoint_hr}hr"
         if exposure_id not in exposure_nodes:
             exposure_attrs = {
