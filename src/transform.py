@@ -145,7 +145,7 @@ def add_protein_annotations(graph, session):
             pathway_attrs = {
                 "type": "Pathway",
                 "name": name,
-                "id": external_id,
+                "external_id": external_id,
                 "source": source,
                 "label": f"{external_id} | {name}" if external_id else name
             }

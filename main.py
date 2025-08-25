@@ -1,9 +1,9 @@
 import os
 import yaml
 import pickle
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine
+from sql.utils import connect_to_psql_database
 from src.build_graph import build_graph_from_db
+from src.neo4j.utils import connect_to_neo4j_db, upload_to_neo4j_db
 import matplotlib.pyplot as plt
 import networkx as nx
 from random import choice
@@ -52,24 +52,6 @@ def graph_simple_plot(G, out_file="graph.png"):
     plt.close()
     return
 
-
-def connect_to_database(config):
-    connection_url = (
-        "postgresql://"
-        + str(config["psql_user"])
-        + ":"
-        + str(config["psql_pass"])
-        + "@"
-        + str(config["psql_host"])
-        + ":"
-        + "5432"
-        + "/"
-        + str(config["psql_db_name"])
-    )
-    engine = create_engine(connection_url, echo=False)
-    return engine
-
-
 # Load database connection parameters from .yaml file
 HERE_PATH = os.path.dirname(os.path.abspath(__file__))
 with open(f"{HERE_PATH}/config.yml", "r") as stream:
@@ -78,14 +60,12 @@ with open(f"{HERE_PATH}/config.yml", "r") as stream:
     except yaml.YAMLError as exc:
         print(exc)
 
-graph_name = "ptox_kg_sample"
+graph_name = "ptox_kg"
 graphml_file = f"{graph_name}.graphml"
 pkl_file = f"{graph_name}.pkl"
 
-# Setup DB session
-engine = connect_to_database(config)
-Session = sessionmaker(bind=engine)
-session = Session()
+# Setup Ptox DB session
+session = connect_to_psql_database(config)
 
 # Build graph if it does not exist
 if os.path.isfile(pkl_file):
@@ -97,4 +77,13 @@ print(G.number_of_nodes())
 print(G.number_of_edges())
 
 # Plot graph (use only on small graph subset)
-graph_simple_plot(G, out_file="graph.png")
+# graph_simple_plot(G, out_file="graph.png")
+
+# Connect to Neo4j
+graph_db = connect_to_neo4j_db(
+    config["neo4j_address"],
+    config["neo4j_user"],
+    config["neo4j_pass"]
+)
+# Upload graph to Neo4J
+upload_to_neo4j_db(G, graph_db)

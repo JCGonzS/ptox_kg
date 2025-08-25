@@ -1,5 +1,6 @@
 from sql.model import Chemical, Biosystem, Organism, Protein, ProteinAnnotation
 
+
 def fetch_chemicals(session):
     return session.query(Chemical).all()
 
